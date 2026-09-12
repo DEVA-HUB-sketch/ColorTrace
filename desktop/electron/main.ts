@@ -1,0 +1,60 @@
+import { app, BrowserWindow } from 'electron';
+import * as path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const isDev = !app.isPackaged;
+const devServerUrl = 'http://127.0.0.1:5173';
+const builtIndexPath = path.join(__dirname, '../dist/index.html');
+
+async function loadApp(mainWindow: BrowserWindow) {
+  if (isDev) {
+    try {
+      const response = await fetch(devServerUrl);
+      if (response.ok) {
+        await mainWindow.loadURL(devServerUrl);
+        mainWindow.webContents.openDevTools({ mode: 'detach' });
+        return;
+      }
+    } catch {
+      // Fall back to built bundle when the Vite dev server is unavailable.
+    }
+  }
+
+  await mainWindow.loadFile(builtIndexPath);
+}
+
+function createWindow() {
+  const mainWindow = new BrowserWindow({
+    width: 1500,
+    height: 1000,
+    minWidth: 1200,
+    minHeight: 800,
+    backgroundColor: '#F7F9FC',
+    webPreferences: {
+      contextIsolation: true,
+      nodeIntegration: false,
+      preload: path.join(__dirname, 'preload.js'),
+    },
+  });
+
+  loadApp(mainWindow);
+}
+
+app.whenReady().then(() => {
+  createWindow();
+
+  app.on('activate', () => {
+    if (BrowserWindow.getAllWindows().length === 0) {
+      createWindow();
+    }
+  });
+});
+
+app.on('window-all-closed', () => {
+  if (process.platform !== 'darwin') {
+    app.quit();
+  }
+});
