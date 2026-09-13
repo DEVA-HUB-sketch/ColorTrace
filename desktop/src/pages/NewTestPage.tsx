@@ -1,5 +1,8 @@
-import { useMemo, useState } from 'react';
-import { AlertTriangle, ArrowLeft, ArrowRight, Camera, CheckCircle2, CircleDashed, FlaskConical, Image as ImageIcon, ShieldAlert } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { AlertTriangle, ArrowLeft, ArrowRight, Camera, CheckCircle2, CircleDashed, FlaskConical, Image as ImageIcon, RefreshCw, ShieldAlert } from 'lucide-react';
+import CameraCapture from '@/components/CameraCapture';
+import LocationCaptureCard from '@/components/LocationCaptureCard';
+import { getCurrentFrontendSession } from '@/services/auth';
 import {
   configurationOptions,
   getConfigurationById,
@@ -10,36 +13,25 @@ import {
   getResultBadge,
   workflowSteps,
 } from '@/state/newTestWorkflow';
-import type { LocationState, NewTestResult, NewTestWorkflowStep, WorkflowResultState } from '@/types/newTestWorkflow';
-
-const resultOptions: Array<{ value: NewTestResult; label: string; helper: string }> = [
-  { value: 'POSITIVE', label: 'POSITIVE', helper: 'Select a presumptive field-test result state for this workflow.' },
-  { value: 'NEGATIVE', label: 'NEGATIVE', helper: 'Select a presumptive field-test result state for this workflow.' },
-  { value: 'INCONCLUSIVE', label: 'INCONCLUSIVE', helper: 'Select a presumptive field-test result state for this workflow.' },
-];
-
-function createPlaceholderImage(label: string) {
-  return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`
-    <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="900" viewBox="0 0 1200 900">
-      <defs>
-        <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
-          <stop offset="0%" stop-color="#edf3ff"/>
-          <stop offset="100%" stop-color="#dee7ff"/>
-        </linearGradient>
-      </defs>
-      <rect width="1200" height="900" fill="url(#bg)"/>
-      <rect x="110" y="120" width="980" height="660" rx="36" fill="#ffffff" stroke="#c7d4f5" stroke-width="4"/>
-      <rect x="180" y="180" width="840" height="520" rx="24" fill="#eff6ff" stroke="#b8c9f6" stroke-width="2"/>
-      <circle cx="600" cy="360" r="110" fill="#dfeafe" stroke="#8aa7df" stroke-width="4"/>
-      <rect x="242" y="520" width="716" height="80" rx="18" fill="#ffffff" stroke="#c7d4f5" stroke-width="2"/>
-      <text x="600" y="420" text-anchor="middle" font-size="70" font-family="Segoe UI, Arial" fill="#1d4ed8" font-weight="700">Captured Frame</text>
-      <text x="600" y="566" text-anchor="middle" font-size="32" font-family="Segoe UI, Arial" fill="#334155">${label}</text>
-    </svg>
-  `)}`;
-}
+import type { CameraState, CapturedImageData, LocationData, LocationState, NewTestWorkflowStep, WorkflowResultState } from '@/types/newTestWorkflow';
 
 export default function NewTestPage() {
   const [workflow, setWorkflow] = useState(getInitialWorkflowState());
+  const currentObjectUrlRef = useRef<string | null>(null);
+
+  // Clean up object URL when component unmounts
+  useEffect(() => {
+    return () => {
+      if (currentObjectUrlRef.current) {
+        try {
+          URL.revokeObjectURL(currentObjectUrlRef.current);
+        } catch {
+          // Safe ignore
+        }
+        currentObjectUrlRef.current = null;
+      }
+    };
+  }, []);
 
   const currentStepIndex = workflowSteps.findIndex((step) => step.key === workflow.currentStep);
   const selectedConfiguration = useMemo(
@@ -70,13 +62,13 @@ export default function NewTestPage() {
       case 'instructions':
         return true;
       case 'capture':
-        return workflow.captureState === 'captured';
+        return workflow.captureState === 'CAPTURED' && Boolean(workflow.capturedImage);
       case 'review':
-        return workflow.captureState === 'captured' && !!workflow.capturedImage;
+        return Boolean(workflow.capturedImage);
       case 'analysis':
         return true;
       case 'result':
-        return workflow.resultState !== 'UNAVAILABLE';
+        return true;
       case 'evidence':
         return Boolean(workflow.evidenceRecordState?.available);
       case 'provenance':
@@ -87,23 +79,30 @@ export default function NewTestPage() {
   }, [selectedConfiguration, workflow]);
 
   const updateEvidenceRecord = (nextState = workflow) => {
-    const timestamp = nextState.evidenceRecordState.timestamp || new Date().toLocaleString('en-GB', { hour12: false });
-    const selectedConfig = getConfigurationById(nextState.selectedConfigurationId);
+    const session = getCurrentFrontendSession();
+    const operator = session?.officerId ? session.officerId : 'Unavailable';
+    const timestamp = nextState.capturedData?.capturedAt
+      ? new Date(nextState.capturedData.capturedAt).toLocaleString('en-GB', { hour12: false })
+      : nextState.evidenceRecordState?.timestamp || 'Unavailable';
+    const locationFormatted = nextState.locationData
+      ? `${nextState.locationData.latitude.toFixed(6)}, ${nextState.locationData.longitude.toFixed(6)}`
+      : 'Unavailable';
 
     return {
       ...nextState,
       evidenceRecordState: {
         ...nextState.evidenceRecordState,
         available: Boolean(nextState.capturedImage),
-        recordId: `CT-${Date.now().toString().slice(-6)}`,
-        configurationId: nextState.selectedConfigurationId,
-        configurationName: selectedConfig?.name ?? 'Unavailable',
-        version: selectedConfig?.version ?? 'Unavailable',
+        recordId: 'Unavailable',
+        configurationId: '',
+        configurationName: 'Unavailable',
+        version: 'Unavailable',
         timestamp,
-        location: 'Unavailable',
-        operator: 'Officer 01',
-        device: 'LT-400',
-        result: nextState.resultState === 'UNAVAILABLE' ? 'UNAVAILABLE' : nextState.resultState,
+        location: locationFormatted,
+        locationData: nextState.locationData ?? null,
+        operator,
+        device: 'Unavailable',
+        result: 'UNAVAILABLE',
         image: nextState.capturedImage,
       },
     };
@@ -128,55 +127,132 @@ export default function NewTestPage() {
     }));
   };
 
-  const handleInitializeCamera = () => {
+  const handleRealCapture = (captureResult: {
+    blob: Blob;
+    dataUrl?: string;
+    capturedAt: string;
+    width?: number;
+    height?: number;
+  }) => {
+    if (currentObjectUrlRef.current) {
+      try {
+        URL.revokeObjectURL(currentObjectUrlRef.current);
+      } catch {
+        // Safe ignore
+      }
+      currentObjectUrlRef.current = null;
+    }
+
+    let previewUrl = '';
+    try {
+      previewUrl = URL.createObjectURL(captureResult.blob);
+      currentObjectUrlRef.current = previewUrl;
+    } catch {
+      previewUrl = captureResult.dataUrl || '';
+    }
+
+    const capturedData: CapturedImageData = {
+      blob: captureResult.blob,
+      previewUrl,
+      dataUrl: captureResult.dataUrl,
+      capturedAt: captureResult.capturedAt,
+      width: captureResult.width,
+      height: captureResult.height,
+    };
+
+    const session = getCurrentFrontendSession();
+    const operator = session?.officerId ? session.officerId : 'Unavailable';
+    const formattedTimestamp = new Date(captureResult.capturedAt).toLocaleString('en-GB', { hour12: false });
+
     setWorkflow((current) => ({
       ...current,
-      captureState: 'initializing',
+      captureState: 'CAPTURED',
+      cameraError: null,
+      reviewState: 'ready',
+      capturedImage: previewUrl,
+      capturedData,
+      evidenceRecordState: {
+        ...current.evidenceRecordState,
+        available: true,
+        recordId: 'Unavailable',
+        configurationId: '',
+        configurationName: 'Unavailable',
+        version: 'Unavailable',
+        timestamp: formattedTimestamp,
+        location: current.locationData
+          ? `${current.locationData.latitude.toFixed(6)}, ${current.locationData.longitude.toFixed(6)}`
+          : 'Unavailable',
+        locationData: current.locationData ?? null,
+        operator,
+        device: 'Unavailable',
+        result: 'UNAVAILABLE',
+        image: previewUrl,
+      },
     }));
-
-    window.setTimeout(() => {
-      setWorkflow((current) => ({
-        ...current,
-        captureState: 'ready',
-      }));
-    }, 700);
   };
 
-  const handleCapture = () => {
+  const handleRealRetake = () => {
+    if (currentObjectUrlRef.current) {
+      try {
+        URL.revokeObjectURL(currentObjectUrlRef.current);
+      } catch {
+        // Safe ignore
+      }
+      currentObjectUrlRef.current = null;
+    }
+
     setWorkflow((current) => ({
       ...current,
-      captureState: 'capturing',
-      reviewState: 'not-started',
-    }));
-
-    window.setTimeout(() => {
-      setWorkflow((current) => ({
-        ...current,
-        captureState: 'captured',
-        reviewState: 'ready',
-        capturedImage: createPlaceholderImage('Captured frame'),
-      }));
-    }, 900);
-  };
-
-  const handleRetake = () => {
-    setWorkflow((current) => ({
-      ...current,
-      captureState: 'ready',
+      captureState: 'INITIALIZING',
+      cameraError: null,
       capturedImage: null,
+      capturedData: null,
       reviewState: 'not-started',
       evidenceRecordState: {
         ...current.evidenceRecordState,
         image: null,
         available: false,
+        timestamp: 'Unavailable',
       },
     }));
   };
 
-  const handleLocationStateChange = (nextState: LocationState) => {
+  const handleCameraStateChange = (nextState: CameraState, error?: string | null) => {
+    setWorkflow((current) => ({
+      ...current,
+      captureState: nextState,
+      cameraError: error ?? null,
+    }));
+  };
+
+  const handleLocationSuccess = (data: LocationData) => {
+    const locationFormatted = `${data.latitude.toFixed(6)}, ${data.longitude.toFixed(6)}`;
+    setWorkflow((current) => ({
+      ...current,
+      locationState: 'LOCATION_AVAILABLE',
+      locationData: data,
+      locationError: null,
+      evidenceRecordState: {
+        ...current.evidenceRecordState,
+        location: locationFormatted,
+        locationData: data,
+      },
+    }));
+  };
+
+  const handleLocationStateChange = (nextState: LocationState, error?: string | null) => {
     setWorkflow((current) => ({
       ...current,
       locationState: nextState,
+      locationError: error ?? null,
+      evidenceRecordState: {
+        ...current.evidenceRecordState,
+        location:
+          nextState === 'LOCATION_AVAILABLE' && current.locationData
+            ? `${current.locationData.latitude.toFixed(6)}, ${current.locationData.longitude.toFixed(6)}`
+            : 'Unavailable',
+        locationData: nextState === 'LOCATION_AVAILABLE' ? current.locationData : null,
+      },
     }));
   };
 
@@ -237,21 +313,6 @@ export default function NewTestPage() {
     }));
   };
 
-  const handleSelectResult = (result: NewTestResult) => {
-    setWorkflow((current) => ({
-      ...current,
-      resultState: result,
-      provenanceState: {
-        status: 'UNAVAILABLE',
-        message: 'Blockchain provenance is unavailable until the backend API is connected.',
-      },
-      evidenceRecordState: {
-        ...current.evidenceRecordState,
-        result,
-      },
-    }));
-  };
-
   const renderStepContent = () => {
     switch (workflow.currentStep) {
       case 'configuration':
@@ -304,91 +365,53 @@ export default function NewTestPage() {
         );
       case 'capture':
         return (
-          <div className="space-y-5">
-            <div className="mb-4 flex items-center gap-3">
+          <div className="space-y-6">
+            <div className="flex items-center gap-3">
               <Camera className="h-5 w-5 text-primaryBlue" />
               <h3 className="text-xl font-semibold text-primaryText">Capture</h3>
             </div>
 
-            <div className="rounded-2xl border border-slate-200 bg-offWhite p-5">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <div className="text-xs uppercase tracking-[0.12em] text-secondaryText">Camera state</div>
-                  <div className="mt-1 text-xl font-semibold text-primaryText">{workflow.captureState?.toUpperCase() ?? 'UNAVAILABLE'}</div>
-                </div>
+            <CameraCapture
+              captureState={workflow.captureState}
+              errorMessage={workflow.cameraError}
+              capturedImage={workflow.capturedImage}
+              capturedData={workflow.capturedData}
+              onStateChange={handleCameraStateChange}
+              onCapture={handleRealCapture}
+              onRetake={handleRealRetake}
+              onContinue={handleNext}
+            />
 
-                <div className="flex gap-3">
-                  {workflow.captureState === 'unavailable' && (
-                    <button type="button" onClick={handleInitializeCamera} className="rounded-xl bg-primaryBlue px-4 py-2.5 text-sm font-semibold text-white">
-                      Initialize camera
-                    </button>
-                  )}
-
-                  {workflow.captureState === 'ready' && (
-                    <button type="button" onClick={handleCapture} className="rounded-xl bg-primaryBlue px-4 py-2.5 text-sm font-semibold text-white">
-                      Capture frame
-                    </button>
-                  )}
-
-                  {workflow.captureState === 'captured' && (
-                    <button type="button" onClick={handleRetake} className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-primaryText">
-                      Retake
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4 text-sm text-secondaryText">
-                {workflow.captureState === 'unavailable' && 'Camera unavailable in the current frontend. No live camera or computer-vision processing is connected yet.'}
-                {workflow.captureState === 'initializing' && 'Camera is initializing. The capture layer is currently unavailable in this desktop build.'}
-                {workflow.captureState === 'ready' && 'Camera ready. The reference card should remain visible in the frame to support future image-alignment stages.'}
-                {workflow.captureState === 'capturing' && 'Capturing frame...'}
-                {workflow.captureState === 'captured' && 'Capture completed. Review the frame before continuing to analysis.'}
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-slate-200 bg-offWhite p-5">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <div className="text-xs uppercase tracking-[0.12em] text-secondaryText">Location state</div>
-                  <div className="mt-1 text-xl font-semibold text-primaryText">{workflow.locationState?.toUpperCase() ?? 'UNAVAILABLE'}</div>
-                </div>
-
-                <div className="flex gap-3">
-                  {workflow.locationState !== 'ready' && (
-                    <button type="button" onClick={() => handleLocationStateChange('ready')} className="rounded-xl bg-primaryBlue px-4 py-2.5 text-sm font-semibold text-white">
-                      Enable location UI
-                    </button>
-                  )}
-
-                  {workflow.locationState !== 'denied' && (
-                    <button type="button" onClick={() => handleLocationStateChange('denied')} className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-primaryText">
-                      Simulate denied
-                    </button>
-                  )}
-
-                  {workflow.locationState !== 'unavailable' && (
-                    <button type="button" onClick={() => handleLocationStateChange('unavailable')} className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-primaryText">
-                      Reset
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4 text-sm text-secondaryText">
-                {workflow.locationState === 'unavailable' && 'Location is unavailable in the current frontend. No backend location source or permission flow is connected yet.'}
-                {workflow.locationState === 'ready' && 'Location UI is enabled for frontend testing. No real coordinates or backend location data are being invented.'}
-                {workflow.locationState === 'denied' && 'Location permission is denied in the current frontend test state. The workflow remains usable without crash or fake coordinates.'}
-              </div>
-            </div>
+            <LocationCaptureCard
+              locationState={workflow.locationState}
+              locationData={workflow.locationData}
+              locationError={workflow.locationError}
+              onStateChange={handleLocationStateChange}
+              onSuccess={handleLocationSuccess}
+            />
           </div>
         );
       case 'review':
         return (
           <div className="space-y-5">
-            <div className="mb-4 flex items-center gap-3">
-              <ImageIcon className="h-5 w-5 text-primaryBlue" />
-              <h3 className="text-xl font-semibold text-primaryText">Review</h3>
+            <div className="mb-4 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <ImageIcon className="h-5 w-5 text-primaryBlue" />
+                <h3 className="text-xl font-semibold text-primaryText">Review</h3>
+              </div>
+              {capturedImage && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleRealRetake();
+                    setWorkflow((current) => ({ ...current, currentStep: 'capture' }));
+                  }}
+                  className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-semibold text-primaryText shadow-sm hover:bg-slate-50"
+                >
+                  <RefreshCw className="h-3.5 w-3.5 text-secondaryText" />
+                  Retake Photo
+                </button>
+              )}
             </div>
 
             {!capturedImage ? (
@@ -397,7 +420,16 @@ export default function NewTestPage() {
               </div>
             ) : (
               <div className="space-y-4">
-                <img src={capturedImage ?? undefined} alt="Captured frame preview" className="w-full rounded-2xl border border-slate-200 bg-white object-cover" />
+                <img
+                  src={capturedImage ?? undefined}
+                  onError={(e) => {
+                    if (workflow.capturedData?.dataUrl && e.currentTarget.src !== workflow.capturedData.dataUrl) {
+                      e.currentTarget.src = workflow.capturedData.dataUrl;
+                    }
+                  }}
+                  alt="Captured frame preview"
+                  className="max-h-[500px] w-full rounded-2xl border border-slate-200 bg-white object-contain"
+                />
 
                 <div className="rounded-2xl border border-slate-200 bg-offWhite p-4">
                   <div className="mb-2 text-sm font-medium uppercase tracking-[0.12em] text-secondaryText">Available checks</div>
@@ -449,30 +481,21 @@ export default function NewTestPage() {
               <h3 className="text-xl font-semibold text-primaryText">Result</h3>
             </div>
 
-            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-              <div className="font-semibold">Presumptive field-test result</div>
-              <div className="mt-1">This workflow supports presumptive field-test result states. No real scientific analysis engine is connected yet.</div>
+            <div className="rounded-2xl border border-slate-200 bg-offWhite p-5">
+              <div className="text-xs uppercase tracking-[0.12em] text-secondaryText">Result status</div>
+              <div className="mt-2 flex items-center gap-3">
+                <span className="inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
+                  UNAVAILABLE
+                </span>
+                <span className="text-sm font-medium text-secondaryText">Result not available</span>
+              </div>
+              <p className="mt-3 text-sm text-secondaryText">
+                No analysis has been performed yet. Presumptive field-test outcome states will be populated once the computer-vision and inference pipeline is connected.
+              </p>
             </div>
 
-            <div className="grid gap-4">
-              {resultOptions.map((option) => (
-                <button
-                  key={option.value}
-                  type="button"
-                  onClick={() => handleSelectResult(option.value)}
-                  className={`rounded-2xl border p-4 text-left transition ${
-                    workflow.resultState === option.value
-                      ? 'border-primaryBlue bg-blue-50'
-                      : 'border-slate-200 bg-offWhite hover:border-slate-300'
-                  }`}
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="text-lg font-semibold text-primaryText">{option.label}</div>
-                    {workflow.resultState === option.value && <CheckCircle2 className="h-5 w-5 text-primaryBlue" />}
-                  </div>
-                  <div className="mt-2 text-sm text-secondaryText">{option.helper}</div>
-                </button>
-              ))}
+            <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-5 text-sm text-secondaryText">
+              Field-test outcome classification is unavailable in the current build. The workflow remains safe and navigable without inventing outcomes.
             </div>
           </div>
         );
@@ -517,7 +540,18 @@ export default function NewTestPage() {
                   </div>
                   <div className="rounded-2xl border border-slate-200 bg-offWhite p-4">
                     <div className="text-xs uppercase tracking-[0.12em] text-secondaryText">Location</div>
-                    <div className="mt-1 font-medium text-primaryText">{evidenceRecordLocation}</div>
+                    <div className="mt-1 font-medium text-primaryText">
+                      {evidenceRecordState.locationData ? (
+                        <div>
+                          <div>{evidenceRecordLocation}</div>
+                          <div className="mt-1 text-xs text-secondaryText">
+                            Acc: ±{Math.round(evidenceRecordState.locationData.accuracy)} m • {new Date(evidenceRecordState.locationData.timestamp).toLocaleTimeString()}
+                          </div>
+                        </div>
+                      ) : (
+                        'Unavailable'
+                      )}
+                    </div>
                   </div>
                 </div>
 
@@ -536,7 +570,16 @@ export default function NewTestPage() {
               <div className="rounded-2xl border border-slate-200 bg-offWhite p-4">
                 <div className="text-xs uppercase tracking-[0.12em] text-secondaryText">Captured image</div>
                 {capturedImage ? (
-                  <img src={capturedImage} alt="Evidence preview" className="mt-3 w-full rounded-xl border border-slate-200 bg-white object-cover" />
+                  <img
+                    src={capturedImage}
+                    onError={(e) => {
+                      if (workflow.capturedData?.dataUrl && e.currentTarget.src !== workflow.capturedData.dataUrl) {
+                        e.currentTarget.src = workflow.capturedData.dataUrl;
+                      }
+                    }}
+                    alt="Evidence preview"
+                    className="mt-3 max-h-[420px] w-full rounded-xl border border-slate-200 bg-white object-contain"
+                  />
                 ) : (
                   <div className="mt-3 rounded-xl border border-dashed border-slate-300 bg-white p-6 text-center text-sm text-secondaryText">
                     No image captured.
@@ -662,6 +705,11 @@ export default function NewTestPage() {
             <div className="rounded-xl bg-offWhite px-3 py-2">
               <div className="text-xs uppercase tracking-[0.12em] text-secondaryText">Location state</div>
               <div className="mt-1 font-medium text-primaryText">{workflow.locationState?.toUpperCase() ?? 'UNAVAILABLE'}</div>
+              {workflow.locationData && (
+                <div className="mt-1 text-xs text-secondaryText font-mono">
+                  {workflow.locationData.latitude.toFixed(4)}, {workflow.locationData.longitude.toFixed(4)} (±{Math.round(workflow.locationData.accuracy)}m)
+                </div>
+              )}
             </div>
             <div className="rounded-xl bg-offWhite px-3 py-2">
               <div className="text-xs uppercase tracking-[0.12em] text-secondaryText">Result state</div>

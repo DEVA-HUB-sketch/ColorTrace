@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { ArrowRight, ShieldCheck } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { ArrowRight, Moon, ShieldCheck, Sun } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { attemptFrontendLogin } from '@/services/auth';
 
@@ -9,6 +9,21 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    if (typeof window === 'undefined') return 'light';
+    return window.localStorage.getItem('colortrace-theme') === 'dark' ? 'dark' : 'light';
+  });
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+    window.localStorage.setItem('colortrace-theme', theme);
+  }, [theme]);
 
   const isValid = officerId.trim().length > 0 && password.trim().length > 0;
 
@@ -37,8 +52,21 @@ export default function LoginPage() {
     }, 300);
   };
 
+  const isDarkMode = theme === 'dark';
+
   return (
-    <div className="flex min-h-screen bg-offWhite">
+    <div className="relative flex min-h-screen bg-pageBg">
+      {/* Theme Toggle Button */}
+      <button
+        type="button"
+        aria-label={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+        title={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+        onClick={() => setTheme(isDarkMode ? 'light' : 'dark')}
+        className="absolute right-6 top-6 z-20 flex h-10 w-10 items-center justify-center rounded-full border border-slate-300 bg-white text-secondaryText shadow-sm transition hover:bg-slate-100 dark:border-slate-700 dark:bg-surfaceAlt"
+      >
+        {isDarkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+      </button>
+
       <div className="flex flex-1 items-center justify-center bg-gradient-to-br from-navy via-deepNavy to-primaryBlue p-10 text-white">
         <div className="max-w-lg">
           <div className="mb-6 flex items-center gap-4">
@@ -51,9 +79,14 @@ export default function LoginPage() {
             </div>
           </div>
 
-          <h1 className="text-4xl font-semibold leading-tight">Measure with Precision.<br />Prove with Integrity.</h1>
+          <h1 className="text-4xl font-semibold leading-tight">
+            Measure with Precision.
+            <br />
+            Prove with Integrity.
+          </h1>
           <p className="mt-6 max-w-md text-base text-blue-100">
-            A professional field-operations application for standardised colour measurement, evidence capture, and tamper-evident digital records.
+            A professional field-operations application for standardised colour measurement, evidence capture, and
+            tamper-evident digital records.
           </p>
 
           <div className="mt-10 flex items-center gap-3 rounded-2xl border border-white/15 bg-white/5 p-4 backdrop-blur-sm">

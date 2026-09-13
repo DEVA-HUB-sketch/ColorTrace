@@ -1,3 +1,5 @@
+import type { LocationData } from '@/types/newTestWorkflow';
+
 export type Result = 'POSITIVE' | 'NEGATIVE' | 'INCONCLUSIVE';
 export type IntegrityStatus = 'VERIFIED' | 'PENDING' | 'FAILED' | 'UNAVAILABLE';
 export type BlockchainStatus = 'VERIFIED' | 'PENDING' | 'FAILED' | 'UNAVAILABLE';
@@ -13,6 +15,7 @@ export type TestRecord = {
   timestamp: string;
   operator: string;
   location: string;
+  locationData?: LocationData | null;
   integrityStatus: IntegrityStatus;
   blockchainStatus: BlockchainStatus;
   syncStatus: SyncStatus;

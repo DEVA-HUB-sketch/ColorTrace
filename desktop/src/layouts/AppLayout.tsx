@@ -19,13 +19,18 @@ export default function AppLayout() {
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
     window.localStorage.setItem('colortrace-theme', theme);
   }, [theme]);
 
   const isDarkMode = theme === 'dark';
 
   return (
-    <div className="flex h-full min-h-screen bg-offWhite text-primaryText">
+    <div className="flex h-full min-h-screen bg-pageBg text-primaryText">
       <Sidebar />
 
       <div className="flex min-h-screen flex-1 flex-col">

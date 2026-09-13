@@ -11,6 +11,7 @@
   --color-offWhite: #f7f9fc;
   --color-primaryText: #172033;
   --color-secondaryText: #64748b;
+  --color-mutedText: #94a3b8;
   --color-success: #168a5b;
   --color-warning: #d88900;
   --color-error: #c62828;
@@ -22,7 +23,8 @@
   --color-border: #dbe3ef;
   --color-borderStrong: #cbd5e1;
   --color-inputText: #172033;
-  --color-inputPlaceholder: #64748b;
+  --color-inputPlaceholder: #94a3b8;
+
   font-family: Inter, 'Segoe UI', sans-serif;
   line-height: 1.5;
   font-weight: 400;
@@ -34,19 +36,30 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-html[data-theme='dark'] {
-  --color-pageBg: #0b1220;
-  --color-surface: #111827;
-  --color-surfaceAlt: #162235;
-  --color-surfaceSoft: #1b2a3c;
-  --color-border: #2f3e57;
-  --color-borderStrong: #475c7a;
-  --color-primaryText: #edf4ff;
-  --color-secondaryText: #a1afc2;
-  --color-offWhite: #162235;
-  --color-white: #111827;
-  --color-inputText: #edf4ff;
-  --color-inputPlaceholder: #a1afc2;
+html[data-theme='dark'],
+.dark {
+  --color-navy: #0b1f3a;
+  --color-deepNavy: #071426;
+  --color-primaryBlue: #146ef5;
+  --color-lightBlue: #1a365d;
+  --color-white: #0b1f3a;
+  --color-offWhite: #0e2442;
+  --color-primaryText: #f1f5f9;
+  --color-secondaryText: #94a3b8;
+  --color-mutedText: #64748b;
+  --color-success: #10b981;
+  --color-warning: #f59e0b;
+  --color-error: #ef4444;
+  --color-blockchainAccent: #818cf8;
+  --color-pageBg: #071426;
+  --color-surface: #0b1f3a;
+  --color-surfaceAlt: #0e2442;
+  --color-surfaceSoft: #153258;
+  --color-border: #1e3a5f;
+  --color-borderStrong: #2d5282;
+  --color-inputText: #f8fafc;
+  --color-inputPlaceholder: #64748b;
+  color-scheme: dark;
 }
 
 html,
@@ -70,20 +83,27 @@ body {
 
 button,
 input,
-select {
+select,
+textarea {
   font: inherit;
 }
 
-input::placeholder {
+input::placeholder,
+textarea::placeholder {
   color: var(--color-inputPlaceholder);
 }
 
-html[data-theme='dark'] .bg-white,
-html[data-theme='dark'] .bg-slate-50,
-html[data-theme='dark'] .bg-slate-100,
-html[data-theme='dark'] .bg-slate-200,
-html[data-theme='dark'] .bg-offWhite {
+/* =======================================================
+   DARK MODE COMPONENT & UTILITY OVERRIDES
+   ======================================================= */
+
+/* Surfaces and Cards */
+html[data-theme='dark'] .bg-white {
   background-color: var(--color-surface);
+}
+
+html[data-theme='dark'] .bg-offWhite {
+  background-color: var(--color-surfaceAlt);
 }
 
 html[data-theme='dark'] .bg-slate-50 {
@@ -91,13 +111,14 @@ html[data-theme='dark'] .bg-slate-50 {
 }
 
 html[data-theme='dark'] .bg-slate-100 {
-  background-color: var(--color-surfaceAlt);
+  background-color: var(--color-surfaceSoft);
 }
 
 html[data-theme='dark'] .bg-slate-200 {
   background-color: var(--color-surfaceSoft);
 }
 
+/* Borders */
 html[data-theme='dark'] .border-slate-200 {
   border-color: var(--color-border);
 }
@@ -106,6 +127,15 @@ html[data-theme='dark'] .border-slate-300 {
   border-color: var(--color-borderStrong);
 }
 
+html[data-theme='dark'] .border-slate-100 {
+  border-color: var(--color-border);
+}
+
+html[data-theme='dark'] .divide-slate-200 > :not([hidden]) ~ :not([hidden]) {
+  border-color: var(--color-border);
+}
+
+/* Text Hierarchy */
 html[data-theme='dark'] .text-primaryText {
   color: var(--color-primaryText);
 }
@@ -114,49 +144,174 @@ html[data-theme='dark'] .text-secondaryText {
   color: var(--color-secondaryText);
 }
 
-html[data-theme='dark'] .text-slate-300,
-html[data-theme='dark'] .text-slate-400,
 html[data-theme='dark'] .text-slate-500,
 html[data-theme='dark'] .text-slate-600,
-html[data-theme='dark'] .text-slate-700,
-html[data-theme='dark'] .text-slate-800,
-html[data-theme='dark'] .text-slate-900 {
+html[data-theme='dark'] .text-slate-700 {
   color: var(--color-secondaryText);
 }
 
-html[data-theme='dark'] .text-white,
-html[data-theme='dark'] .text-primaryBlue,
-html[data-theme='dark'] .text-success,
-html[data-theme='dark'] .text-warning,
-html[data-theme='dark'] .text-error,
-html[data-theme='dark'] .text-emerald-700,
-html[data-theme='dark'] .text-amber-700,
-html[data-theme='dark'] .text-rose-700,
-html[data-theme='dark'] .text-sky-700,
-html[data-theme='dark'] .text-violet-700,
-html[data-theme='dark'] .text-indigo-700,
-html[data-theme='dark'] .text-emerald-800,
-html[data-theme='dark'] .text-amber-800,
-html[data-theme='dark'] .text-rose-800 {
-  color: inherit;
+html[data-theme='dark'] .text-slate-800,
+html[data-theme='dark'] .text-slate-900 {
+  color: var(--color-primaryText);
 }
 
 html[data-theme='dark'] .shadow-soft {
-  box-shadow: 0 10px 24px rgba(2, 6, 23, 0.4);
+  box-shadow: 0 10px 25px rgba(2, 6, 23, 0.45);
 }
 
-html[data-theme='dark'] select,
+/* Inputs, Selects, and Textareas */
 html[data-theme='dark'] input,
+html[data-theme='dark'] select,
 html[data-theme='dark'] textarea {
   color: var(--color-inputText);
-  background-color: var(--color-surface);
+  background-color: var(--color-surfaceAlt);
+  border-color: var(--color-borderStrong);
 }
 
+html[data-theme='dark'] select option {
+  background-color: var(--color-surface);
+  color: var(--color-primaryText);
+}
+
+/* Status Badges & Pills */
+/* Emerald / Positive / Verified */
+html[data-theme='dark'] .bg-emerald-100,
+html[data-theme='dark'] .bg-emerald-50 {
+  background-color: rgba(16, 185, 129, 0.16);
+  border-color: rgba(16, 185, 129, 0.35);
+}
+
+html[data-theme='dark'] .text-emerald-700,
+html[data-theme='dark'] .text-emerald-800,
+html[data-theme='dark'] .text-emerald-600 {
+  color: #34d399 !important;
+}
+
+html[data-theme='dark'] .border-emerald-200 {
+  border-color: rgba(16, 185, 129, 0.35);
+}
+
+/* Sky / Negative */
+html[data-theme='dark'] .bg-sky-100,
+html[data-theme='dark'] .bg-sky-50 {
+  background-color: rgba(14, 165, 233, 0.16);
+  border-color: rgba(14, 165, 233, 0.35);
+}
+
+html[data-theme='dark'] .text-sky-700,
+html[data-theme='dark'] .text-sky-800,
+html[data-theme='dark'] .text-sky-600 {
+  color: #38bdf8 !important;
+}
+
+/* Amber / Warning / Pending / Inconclusive */
+html[data-theme='dark'] .bg-amber-100,
+html[data-theme='dark'] .bg-amber-50 {
+  background-color: rgba(245, 158, 11, 0.16);
+  border-color: rgba(245, 158, 11, 0.35);
+}
+
+html[data-theme='dark'] .text-amber-700,
+html[data-theme='dark'] .text-amber-800,
+html[data-theme='dark'] .text-amber-600 {
+  color: #fbbf24 !important;
+}
+
+html[data-theme='dark'] .border-amber-200 {
+  border-color: rgba(245, 158, 11, 0.35);
+}
+
+/* Rose / Error / Failed / Denied */
+html[data-theme='dark'] .bg-rose-100,
+html[data-theme='dark'] .bg-rose-50 {
+  background-color: rgba(239, 68, 68, 0.16);
+  border-color: rgba(239, 68, 68, 0.35);
+}
+
+html[data-theme='dark'] .text-rose-700,
+html[data-theme='dark'] .text-rose-800,
+html[data-theme='dark'] .text-rose-600 {
+  color: #f87171 !important;
+}
+
+html[data-theme='dark'] .border-rose-200 {
+  border-color: rgba(239, 68, 68, 0.35);
+}
+
+/* Violet / Blockchain */
+html[data-theme='dark'] .bg-violet-100,
+html[data-theme='dark'] .bg-violet-50 {
+  background-color: rgba(139, 92, 246, 0.16);
+  border-color: rgba(139, 92, 246, 0.35);
+}
+
+html[data-theme='dark'] .text-violet-700,
+html[data-theme='dark'] .text-violet-800,
+html[data-theme='dark'] .text-violet-600 {
+  color: #a78bfa !important;
+}
+
+/* Indigo */
+html[data-theme='dark'] .bg-indigo-100,
+html[data-theme='dark'] .bg-indigo-50 {
+  background-color: rgba(99, 102, 241, 0.16);
+  border-color: rgba(99, 102, 241, 0.35);
+}
+
+html[data-theme='dark'] .text-indigo-700,
+html[data-theme='dark'] .text-indigo-800 {
+  color: #818cf8 !important;
+}
+
+/* Active Workflow Blue & Badges */
+html[data-theme='dark'] .bg-blue-50 {
+  background-color: rgba(20, 110, 245, 0.18);
+  border-color: rgba(20, 110, 245, 0.45);
+}
+
+html[data-theme='dark'] .border-blue-200 {
+  border-color: rgba(20, 110, 245, 0.45);
+}
+
+/* Interactive Table Hover */
+html[data-theme='dark'] tbody tr:hover,
+html[data-theme='dark'] .hover\:bg-slate-50:hover {
+  background-color: var(--color-surfaceSoft);
+}
+
+/* Interactive Border Hover */
+html[data-theme='dark'] .hover\:border-slate-300:hover {
+  border-color: var(--color-borderStrong);
+}
+
+/* Dashed Empty State Cards */
+html[data-theme='dark'] .border-dashed.border-slate-300 {
+  border-color: var(--color-borderStrong);
+  background-color: var(--color-surfaceAlt);
+}
+
+/* Scrollbars */
 ::-webkit-scrollbar {
   width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-pageBg);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: var(--color-borderStrong);
   border-radius: 999px;
+  border: 2px solid var(--color-pageBg);
+}
+
+html[data-theme='dark'] ::-webkit-scrollbar-thumb {
+  background: var(--color-borderStrong);
+}
+
+/* Camera and Media Safety: Natural presentation without CSS color inversion */
+video,
+img {
+  filter: none !important;
 }
