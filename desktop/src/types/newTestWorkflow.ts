@@ -47,14 +47,8 @@ export type CapturedImageData = {
   height?: number;
 };
 
-export type ConfigurationOption = {
-  id: string;
-  name: string;
-  referenceConfiguration: string;
-  version: string;
-  supportedOutcomeClasses: NewTestResult[];
-  description: string;
-};
+export type { ConfigurationOption } from './configuration';
+import type { ConfigurationOption } from './configuration';
 
 export type AnalysisStage = {
   name: string;
@@ -77,8 +71,17 @@ export type EvidenceRecordState = {
   image: string | null;
 };
 
+export type WorkflowSubmissionState =
+  | 'IDLE'
+  | 'READY_TO_SUBMIT'
+  | 'SUBMITTING'
+  | 'SUBMITTED'
+  | 'SUBMISSION_UNAVAILABLE'
+  | 'SUBMISSION_FAILED';
+
 export type NewTestWorkflowState = {
   selectedConfigurationId: string;
+  selectedConfiguration?: ConfigurationOption | null;
   currentStep: NewTestWorkflowStep;
   captureState: CaptureState;
   cameraError?: string | null;
@@ -99,4 +102,6 @@ export type NewTestWorkflowState = {
     status: ProvenanceStatus;
     message: string;
   };
+  submissionState: WorkflowSubmissionState;
+  submissionMessage?: string;
 };

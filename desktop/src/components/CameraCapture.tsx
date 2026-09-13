@@ -427,17 +427,17 @@ export default function CameraCapture({
               <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-between p-6">
                 {/* Top Badge */}
                 <div className="flex w-full items-center justify-between">
-                  <div className="flex items-center gap-2 rounded-full bg-slate-900/80 px-3.5 py-1.5 text-xs font-semibold uppercase tracking-wider text-white backdrop-blur-sm">
+                  <div className="flex items-center gap-2 rounded-full border border-slate-700/80 bg-slate-900/90 px-3.5 py-1.5 text-xs font-semibold uppercase tracking-wider text-white shadow-md backdrop-blur-md">
                     <span className="h-2 w-2 animate-ping rounded-full bg-emerald-400" />
                     <span>Live Preview</span>
                   </div>
-                  <div className="rounded-full bg-slate-900/80 p-2 text-slate-300 backdrop-blur-sm">
+                  <div className="rounded-full border border-slate-700/80 bg-slate-900/90 p-2 text-slate-200 shadow-md backdrop-blur-md">
                     <Maximize2 className="h-4 w-4" />
                   </div>
                 </div>
 
                 {/* Alignment Reticle Box */}
-                <div className="relative flex h-[62%] w-[82%] max-w-[560px] items-center justify-center rounded-2xl border-2 border-dashed border-white/60 bg-white/5">
+                <div className="relative flex h-[62%] w-[82%] max-w-[560px] items-center justify-center rounded-2xl border-2 border-dashed border-white/80 bg-white/5 shadow-sm">
                   {/* Four Corner Brackets */}
                   <div className="absolute -left-1 -top-1 h-6 w-6 border-l-4 border-t-4 border-primaryBlue rounded-tl-sm" />
                   <div className="absolute -right-1 -top-1 h-6 w-6 border-r-4 border-t-4 border-primaryBlue rounded-tr-sm" />
@@ -445,13 +445,13 @@ export default function CameraCapture({
                   <div className="absolute -bottom-1 -right-1 h-6 w-6 border-b-4 border-r-4 border-primaryBlue rounded-br-sm" />
 
                   {/* Centered Reticle Label */}
-                  <div className="rounded-lg bg-slate-950/70 px-3 py-1.5 text-xs font-medium text-white backdrop-blur-sm">
+                  <div className="rounded-lg border border-slate-700/80 bg-slate-950/85 px-3.5 py-1.5 text-xs font-semibold tracking-wide text-white shadow-md backdrop-blur-md">
                     Test & Reference Card Target Area
                   </div>
                 </div>
 
                 {/* Bottom Overlay Hint */}
-                <div className="rounded-full bg-slate-950/75 px-4 py-1.5 text-xs text-slate-300 backdrop-blur-sm">
+                <div className="rounded-full border border-slate-700/80 bg-slate-950/85 px-4 py-1.5 text-xs font-medium text-slate-200 shadow-md backdrop-blur-md">
                   Align the test reaction and reference card within the target area
                 </div>
               </div>

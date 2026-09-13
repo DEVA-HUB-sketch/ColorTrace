@@ -5,7 +5,14 @@ import type {
   NewTestWorkflowStep,
   ProvenanceStatus,
   WorkflowResultState,
+  WorkflowSubmissionState,
 } from '@/types/newTestWorkflow';
+
+import {
+  getConfigurationById,
+  getConfigurationOptions,
+  getDefaultConfiguration,
+} from '@/services/configurationService';
 
 export const workflowSteps: { key: NewTestWorkflowStep; label: string }[] = [
   { key: 'configuration', label: 'Configuration' },
@@ -18,7 +25,9 @@ export const workflowSteps: { key: NewTestWorkflowStep; label: string }[] = [
   { key: 'provenance', label: 'Blockchain Provenance' },
 ];
 
-export const configurationOptions: ConfigurationOption[] = [];
+export const configurationOptions: ConfigurationOption[] = getConfigurationOptions();
+
+export { getConfigurationById };
 
 export const defaultAnalysisStages: AnalysisStage[] = [
   { name: 'Image', detail: 'Image received and queued for the analysis pipeline.', status: 'completed' },
@@ -33,15 +42,12 @@ export const defaultAnalysisStages: AnalysisStage[] = [
   { name: 'Result', detail: 'Result will be surfaced once the future analysis pipeline is available.', status: 'pending' },
 ];
 
-export function getConfigurationById(configurationId: string) {
-  return configurationOptions.find((configuration) => configuration.id === configurationId);
-}
-
 export function getInitialWorkflowState(): NewTestWorkflowState {
-  const firstConfiguration = configurationOptions[0];
+  const firstConfiguration = getDefaultConfiguration();
 
   return {
     selectedConfigurationId: firstConfiguration?.id ?? '',
+    selectedConfiguration: firstConfiguration ?? null,
     currentStep: 'configuration',
     captureState: 'UNAVAILABLE',
     cameraError: null,
@@ -60,9 +66,9 @@ export function getInitialWorkflowState(): NewTestWorkflowState {
     evidenceRecordState: {
       available: false,
       recordId: 'Unavailable',
-      configurationId: '',
-      configurationName: 'Unavailable',
-      version: 'Unavailable',
+      configurationId: firstConfiguration?.id ?? '',
+      configurationName: firstConfiguration?.name ?? 'Unavailable',
+      version: firstConfiguration?.version ?? 'Unavailable',
       timestamp: 'Unavailable',
       location: 'Unavailable',
       locationData: null,
@@ -75,6 +81,8 @@ export function getInitialWorkflowState(): NewTestWorkflowState {
       status: 'UNAVAILABLE',
       message: 'Blockchain provenance is not yet connected to a backend API.',
     },
+    submissionState: 'SUBMISSION_UNAVAILABLE',
+    submissionMessage: 'Submission unavailable. Connect to the backend service before submitting this test record.',
   };
 }
 
@@ -111,6 +119,22 @@ export function getProvenanceBadge(status: ProvenanceStatus) {
 
   if (status === 'PENDING') {
     return 'bg-violet-100 text-violet-700';
+  }
+
+  return 'bg-slate-100 text-slate-600';
+}
+
+export function getSubmissionBadge(status: WorkflowSubmissionState) {
+  if (status === 'SUBMITTED') {
+    return 'bg-emerald-100 text-emerald-700';
+  }
+
+  if (status === 'SUBMITTING') {
+    return 'bg-violet-100 text-violet-700';
+  }
+
+  if (status === 'SUBMISSION_FAILED') {
+    return 'bg-rose-100 text-rose-700';
   }
 
   return 'bg-slate-100 text-slate-600';

@@ -9,6 +9,12 @@ const isDev = !app.isPackaged;
 const devServerUrls = ['http://127.0.0.1:4173', 'http://127.0.0.1:5173'];
 const builtIndexPath = path.join(__dirname, '../dist/index.html');
 
+// Enable Windows native WinRT location provider (Windows.Devices.Geolocation.Geolocator)
+// so Chromium uses the operating system location services instead of Google Network Location service.
+if (process.platform === 'win32') {
+  app.commandLine.appendSwitch('enable-features', 'WinrtGeolocationImplementation');
+}
+
 async function loadApp(mainWindow: BrowserWindow) {
   if (isDev) {
     for (const devServerUrl of devServerUrls) {

@@ -1,11 +1,11 @@
 import { useMemo, useState } from 'react';
 import IntegrityStatusBadge from '@/components/IntegrityStatusBadge';
-import type { SyncUiState } from '@/types/testRecord';
+import type { SyncUiState, TestRecord } from '@/types/testRecord';
 
 export default function SyncStatusPage() {
   const [syncUiState, setSyncUiState] = useState<SyncUiState>('offline');
 
-  const queue = useMemo(() => [], [syncUiState]);
+  const queue = useMemo<TestRecord[]>(() => [], [syncUiState]);
 
   const pendingRecords = 0;
 

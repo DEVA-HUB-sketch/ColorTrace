@@ -1,22 +1,40 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { AlertTriangle, ArrowLeft, ArrowRight, Camera, CheckCircle2, CircleDashed, FlaskConical, Image as ImageIcon, RefreshCw, ShieldAlert } from 'lucide-react';
+import {
+  AlertTriangle,
+  ArrowLeft,
+  ArrowRight,
+  Camera,
+  CheckCircle2,
+  Circle,
+  CircleDashed,
+  FlaskConical,
+  Image as ImageIcon,
+  Info,
+  RefreshCw,
+  ShieldAlert,
+} from 'lucide-react';
 import CameraCapture from '@/components/CameraCapture';
 import LocationCaptureCard from '@/components/LocationCaptureCard';
 import { getCurrentFrontendSession } from '@/services/auth';
 import {
-  configurationOptions,
   getConfigurationById,
+  getConfigurationOptions,
+} from '@/services/configurationService';
+import {
   getInitialWorkflowState,
   getNextStep,
   getPreviousStep,
   getProvenanceBadge,
   getResultBadge,
+  getSubmissionBadge,
   workflowSteps,
 } from '@/state/newTestWorkflow';
-import type { CameraState, CapturedImageData, LocationData, LocationState, NewTestWorkflowStep, WorkflowResultState } from '@/types/newTestWorkflow';
+import { submitTestRecord } from '@/services/submissionService';
+import type { CameraState, CapturedImageData, LocationData, LocationState, NewTestWorkflowState, NewTestWorkflowStep, WorkflowResultState } from '@/types/newTestWorkflow';
 
 export default function NewTestPage() {
   const [workflow, setWorkflow] = useState(getInitialWorkflowState());
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const currentObjectUrlRef = useRef<string | null>(null);
 
   // Clean up object URL when component unmounts
@@ -34,6 +52,7 @@ export default function NewTestPage() {
   }, []);
 
   const currentStepIndex = workflowSteps.findIndex((step) => step.key === workflow.currentStep);
+  const availableConfigurations = useMemo(() => getConfigurationOptions(), []);
   const selectedConfiguration = useMemo(
     () => getConfigurationById(workflow.selectedConfigurationId),
     [workflow.selectedConfigurationId],
@@ -78,7 +97,7 @@ export default function NewTestPage() {
     }
   }, [selectedConfiguration, workflow]);
 
-  const updateEvidenceRecord = (nextState = workflow) => {
+  const updateEvidenceRecord = (nextState: NewTestWorkflowState = workflow): NewTestWorkflowState => {
     const session = getCurrentFrontendSession();
     const operator = session?.officerId ? session.officerId : 'Unavailable';
     const timestamp = nextState.capturedData?.capturedAt
@@ -88,21 +107,24 @@ export default function NewTestPage() {
       ? `${nextState.locationData.latitude.toFixed(6)}, ${nextState.locationData.longitude.toFixed(6)}`
       : 'Unavailable';
 
+    const currentConfig =
+      getConfigurationById(nextState.selectedConfigurationId) ?? nextState.selectedConfiguration;
+
     return {
       ...nextState,
       evidenceRecordState: {
         ...nextState.evidenceRecordState,
         available: Boolean(nextState.capturedImage),
         recordId: 'Unavailable',
-        configurationId: '',
-        configurationName: 'Unavailable',
-        version: 'Unavailable',
+        configurationId: currentConfig?.id ?? '',
+        configurationName: currentConfig?.name ?? 'Unavailable',
+        version: currentConfig?.version ?? 'Unavailable',
         timestamp,
         location: locationFormatted,
         locationData: nextState.locationData ?? null,
         operator,
         device: 'Unavailable',
-        result: 'UNAVAILABLE',
+        result: 'UNAVAILABLE' as WorkflowResultState,
         image: nextState.capturedImage,
       },
     };
@@ -118,6 +140,7 @@ export default function NewTestPage() {
     setWorkflow((current) => ({
       ...current,
       selectedConfigurationId: configurationId,
+      selectedConfiguration: config,
       evidenceRecordState: {
         ...current.evidenceRecordState,
         configurationId: config.id,
@@ -163,6 +186,8 @@ export default function NewTestPage() {
     const session = getCurrentFrontendSession();
     const operator = session?.officerId ? session.officerId : 'Unavailable';
     const formattedTimestamp = new Date(captureResult.capturedAt).toLocaleString('en-GB', { hour12: false });
+    const currentConfig =
+      getConfigurationById(workflow.selectedConfigurationId) ?? workflow.selectedConfiguration;
 
     setWorkflow((current) => ({
       ...current,
@@ -175,9 +200,9 @@ export default function NewTestPage() {
         ...current.evidenceRecordState,
         available: true,
         recordId: 'Unavailable',
-        configurationId: '',
-        configurationName: 'Unavailable',
-        version: 'Unavailable',
+        configurationId: currentConfig?.id ?? '',
+        configurationName: currentConfig?.name ?? 'Unavailable',
+        version: currentConfig?.version ?? 'Unavailable',
         timestamp: formattedTimestamp,
         location: current.locationData
           ? `${current.locationData.latitude.toFixed(6)}, ${current.locationData.longitude.toFixed(6)}`
@@ -185,7 +210,7 @@ export default function NewTestPage() {
         locationData: current.locationData ?? null,
         operator,
         device: 'Unavailable',
-        result: 'UNAVAILABLE',
+        result: 'UNAVAILABLE' as WorkflowResultState,
         image: previewUrl,
       },
     }));
@@ -245,6 +270,7 @@ export default function NewTestPage() {
       ...current,
       locationState: nextState,
       locationError: error ?? null,
+      locationData: nextState === 'LOCATION_AVAILABLE' ? current.locationData : null,
       evidenceRecordState: {
         ...current.evidenceRecordState,
         location:
@@ -306,6 +332,26 @@ export default function NewTestPage() {
     }
   };
 
+  const handleSubmitTestRecord = async () => {
+    setIsSubmitting(true);
+    try {
+      const response = await submitTestRecord();
+      setWorkflow((current) => ({
+        ...current,
+        submissionState: response.status,
+        submissionMessage: response.message,
+      }));
+    } catch {
+      setWorkflow((current) => ({
+        ...current,
+        submissionState: 'SUBMISSION_UNAVAILABLE',
+        submissionMessage: 'Submission unavailable. Connect to the backend service before submitting this test record.',
+      }));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handlePrevious = () => {
     setWorkflow((current) => ({
       ...current,
@@ -317,15 +363,108 @@ export default function NewTestPage() {
     switch (workflow.currentStep) {
       case 'configuration':
         return (
-          <div className="space-y-5">
-            <div className="mb-4 flex items-center gap-3">
-              <FlaskConical className="h-5 w-5 text-primaryBlue" />
-              <h3 className="text-xl font-semibold text-primaryText">Configuration</h3>
+          <div className="space-y-6">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <FlaskConical className="h-5 w-5 text-primaryBlue" />
+                <div>
+                  <h3 className="text-xl font-semibold text-primaryText">Configuration Presets</h3>
+                  <p className="mt-0.5 text-xs text-secondaryText">
+                    Select an operational test configuration preset to proceed with this workflow.
+                  </p>
+                </div>
+              </div>
             </div>
 
-            <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-sm text-secondaryText">
-              No configuration presets are available in the current frontend build. The backend configuration service is not connected yet.
+            <div className="flex items-start gap-3 rounded-2xl border border-blue-200/80 bg-blue-50/60 p-4 text-xs text-secondaryText dark:border-blue-900/50 dark:bg-blue-950/20">
+              <Info className="mt-0.5 h-4 w-4 shrink-0 text-primaryBlue" />
+              <div className="leading-relaxed">
+                Frontend preset — authoritative configuration will be supplied by the backend when connected.
+              </div>
             </div>
+
+            {availableConfigurations.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center dark:border-slate-700 dark:bg-surfaceAlt">
+                <FlaskConical className="mx-auto mb-3 h-8 w-8 text-slate-400 dark:text-slate-500" />
+                <h4 className="text-base font-semibold text-primaryText">No configuration presets are available.</h4>
+                <p className="mt-1.5 text-sm text-secondaryText">
+                  Authoritative test configurations will be provided by the backend.
+                </p>
+              </div>
+            ) : (
+              <div className="grid gap-4">
+                {availableConfigurations.map((option) => {
+                  const isSelected = selectedConfiguration?.id === option.id;
+
+                  return (
+                    <div
+                      key={option.id}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => handleSelectConfiguration(option.id)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          handleSelectConfiguration(option.id);
+                        }
+                      }}
+                      className={`group relative flex flex-col justify-between rounded-2xl border p-5 transition cursor-pointer text-left focus:outline-none focus:ring-2 focus:ring-primaryBlue/50 ${
+                        isSelected
+                          ? 'border-primaryBlue bg-blue-50/40 shadow-sm ring-1 ring-primaryBlue/30 dark:border-primaryBlue dark:bg-primaryBlue/10 dark:ring-primaryBlue/40'
+                          : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/70 shadow-soft dark:border-slate-700/80 dark:bg-surface dark:hover:border-slate-600 dark:hover:bg-surfaceAlt'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex items-start gap-3.5">
+                          <div className="mt-0.5 shrink-0">
+                            {isSelected ? (
+                              <CheckCircle2 className="h-5 w-5 text-primaryBlue" />
+                            ) : (
+                              <Circle className="h-5 w-5 text-slate-300 transition group-hover:text-slate-400 dark:text-slate-600 dark:group-hover:text-slate-500" />
+                            )}
+                          </div>
+                          <div>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <h4 className="text-base font-semibold text-primaryText">
+                                {option.name}
+                              </h4>
+                              <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-secondaryText dark:bg-slate-800 dark:text-slate-300">
+                                {option.version}
+                              </span>
+                            </div>
+                            <p className="mt-1.5 text-sm leading-relaxed text-secondaryText">
+                              {option.description}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="shrink-0">
+                          <span
+                            className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
+                              isSelected
+                                ? 'bg-primaryBlue/10 text-primaryBlue dark:bg-primaryBlue/25 dark:text-lightBlue'
+                                : 'bg-slate-100 text-secondaryText dark:bg-slate-800 dark:text-slate-400'
+                            }`}
+                          >
+                            {isSelected ? 'Selected' : option.status || 'Preset'}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-slate-100 pt-3 text-xs text-secondaryText dark:border-slate-800/80">
+                        <span className="font-mono">ID: {option.id}</span>
+                        {option.referenceConfiguration && (
+                          <>
+                            <span className="text-slate-300 dark:text-slate-700">•</span>
+                            <span>Reference: {option.referenceConfiguration}</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         );
       case 'instructions':
@@ -659,22 +798,34 @@ export default function NewTestPage() {
             return (
               <div
                 key={step.key}
-                className={`flex items-center gap-3 rounded-xl border p-3 ${
+                className={`flex items-center gap-3 rounded-xl border p-3 transition ${
                   isActive
-                    ? 'border-primaryBlue bg-blue-50'
+                    ? 'border-primaryBlue bg-blue-50 ring-1 ring-primaryBlue/30 shadow-sm'
                     : isComplete
-                      ? 'border-emerald-200 bg-emerald-50'
-                      : 'border-slate-200 bg-offWhite'
+                      ? 'border-emerald-200 bg-emerald-50 dark:border-emerald-500/30 dark:bg-emerald-500/10'
+                      : 'border-slate-200 bg-offWhite dark:border-slate-700/60'
                 }`}
               >
                 <div
                   className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold ${
-                    isActive ? 'bg-primaryBlue text-white' : isComplete ? 'bg-emerald-500 text-white' : 'bg-slate-200 text-secondaryText'
+                    isActive
+                      ? 'bg-primaryBlue text-white shadow-sm'
+                      : isComplete
+                        ? 'bg-emerald-500 text-white'
+                        : 'bg-slate-200 text-slate-600 dark:bg-slate-700/80 dark:text-slate-300'
                   }`}
                 >
                   {index + 1}
                 </div>
-                <span className={`flex-1 text-sm font-medium ${isActive ? 'text-primaryText' : isComplete ? 'text-emerald-700' : 'text-secondaryText'}`}>
+                <span
+                  className={`flex-1 text-sm font-medium ${
+                    isActive
+                      ? 'text-primaryText font-semibold'
+                      : isComplete
+                        ? 'text-emerald-700 dark:text-emerald-400'
+                        : 'text-secondaryText'
+                  }`}
+                >
                   {step.label}
                 </span>
               </div>
@@ -696,7 +847,14 @@ export default function NewTestPage() {
             </div>
             <div className="rounded-xl bg-offWhite px-3 py-2">
               <div className="text-xs uppercase tracking-[0.12em] text-secondaryText">Selected configuration</div>
-              <div className="mt-1 font-medium text-primaryText">{selectedConfiguration?.id ?? 'Unavailable'}</div>
+              <div className="mt-1 font-medium text-primaryText">
+                {selectedConfiguration ? selectedConfiguration.name : 'Unavailable'}
+              </div>
+              {selectedConfiguration && (
+                <div className="mt-0.5 font-mono text-xs text-secondaryText">
+                  {selectedConfiguration.id} ({selectedConfiguration.version})
+                </div>
+              )}
             </div>
             <div className="rounded-xl bg-offWhite px-3 py-2">
               <div className="text-xs uppercase tracking-[0.12em] text-secondaryText">Capture state</div>
@@ -723,6 +881,12 @@ export default function NewTestPage() {
                 {provenanceStatus}
               </div>
             </div>
+            <div className="rounded-xl bg-offWhite px-3 py-2">
+              <div className="text-xs uppercase tracking-[0.12em] text-secondaryText">Submission</div>
+              <div className={`mt-1 inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${getSubmissionBadge(workflow.submissionState)}`}>
+                {workflow.submissionState}
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -738,22 +902,37 @@ export default function NewTestPage() {
             type="button"
             onClick={handlePrevious}
             disabled={workflow.currentStep === 'configuration'}
-            className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-primaryText disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-primaryText shadow-sm transition hover:bg-slate-50 dark:border-slate-700 dark:bg-surfaceAlt dark:hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <ArrowLeft className="h-4 w-4" />
             Back
           </button>
 
-          {workflow.currentStep !== 'provenance' && (
+          {workflow.currentStep !== 'provenance' ? (
             <button
               type="button"
               onClick={handleNext}
               disabled={!canGoNext}
-              className="inline-flex items-center gap-2 rounded-xl bg-primaryBlue px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex items-center gap-2 rounded-xl bg-primaryBlue px-5 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50"
             >
               Next
               <ArrowRight className="h-4 w-4" />
             </button>
+          ) : (
+            <div className="flex flex-col items-end gap-1.5 sm:flex-row sm:items-center sm:gap-3">
+              <span className="text-xs text-secondaryText">
+                Submission will be available when the backend evidence service is connected.
+              </span>
+              <button
+                type="button"
+                onClick={handleSubmitTestRecord}
+                disabled={workflow.submissionState === 'SUBMISSION_UNAVAILABLE' || isSubmitting}
+                className="inline-flex items-center gap-2 rounded-xl bg-primaryBlue px-5 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50"
+                title="Submission unavailable: Connect to the backend service before submitting this test record."
+              >
+                Submit Test Record
+              </button>
+            </div>
           )}
         </div>
       </div>

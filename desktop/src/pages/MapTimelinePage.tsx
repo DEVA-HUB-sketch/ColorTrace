@@ -41,7 +41,7 @@ export default function MapTimelinePage() {
   const mapStyleUrl = (import.meta.env.VITE_MAP_STYLE_URL as string | undefined)?.trim();
 
   // Determine Map UI state
-  const mapUiState: MapUiState = useMemo(() => {
+  const mapUiState = useMemo<MapUiState>(() => {
     if (mapError) {
       return 'ERROR';
     }
