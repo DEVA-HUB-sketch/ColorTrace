@@ -18,24 +18,7 @@ export const workflowSteps: { key: NewTestWorkflowStep; label: string }[] = [
   { key: 'provenance', label: 'Blockchain Provenance' },
 ];
 
-export const configurationOptions: ConfigurationOption[] = [
-  {
-    id: 'CFG-DEMO-01',
-    name: 'Reference configuration',
-    referenceConfiguration: 'Reference configuration',
-    version: 'v1.0.0',
-    supportedOutcomeClasses: ['POSITIVE', 'NEGATIVE', 'INCONCLUSIVE'],
-    description: 'Shared reference configuration for the desktop workflow.',
-  },
-  {
-    id: 'CFG-DEMO-02',
-    name: 'Field operations configuration',
-    referenceConfiguration: 'Reference configuration',
-    version: 'v1.1.0',
-    supportedOutcomeClasses: ['POSITIVE', 'NEGATIVE', 'INCONCLUSIVE'],
-    description: 'Alternative reference configuration for future backend-supported presets.',
-  },
-];
+export const configurationOptions: ConfigurationOption[] = [];
 
 export const defaultAnalysisStages: AnalysisStage[] = [
   { name: 'Image', detail: 'Image received and queued for the analysis pipeline.', status: 'completed' },
@@ -51,14 +34,17 @@ export const defaultAnalysisStages: AnalysisStage[] = [
 ];
 
 export function getConfigurationById(configurationId: string) {
-  return configurationOptions.find((configuration) => configuration.id === configurationId) ?? configurationOptions[0];
+  return configurationOptions.find((configuration) => configuration.id === configurationId);
 }
 
 export function getInitialWorkflowState(): NewTestWorkflowState {
+  const firstConfiguration = configurationOptions[0];
+
   return {
-    selectedConfigurationId: configurationOptions[0].id,
+    selectedConfigurationId: firstConfiguration?.id ?? '',
     currentStep: 'configuration',
     captureState: 'unavailable',
+    locationState: 'unavailable',
     capturedImage: null,
     reviewState: 'not-started',
     analysisState: {
@@ -70,9 +56,9 @@ export function getInitialWorkflowState(): NewTestWorkflowState {
     evidenceRecordState: {
       available: false,
       recordId: 'CT-NEW',
-      configurationId: configurationOptions[0].id,
-      configurationName: configurationOptions[0].name,
-      version: configurationOptions[0].version,
+      configurationId: firstConfiguration?.id ?? '',
+      configurationName: firstConfiguration?.name ?? '',
+      version: firstConfiguration?.version ?? '',
       timestamp: '',
       location: 'LOCATION UNAVAILABLE',
       operator: 'Officer 01',

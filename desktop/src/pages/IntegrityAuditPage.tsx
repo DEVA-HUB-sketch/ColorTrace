@@ -1,5 +1,4 @@
 import IntegrityStatusBadge from '@/components/IntegrityStatusBadge';
-import { demoRecords } from '@/data/demoRecords';
 
 export default function IntegrityAuditPage() {
   return (
@@ -14,36 +13,8 @@ export default function IntegrityAuditPage() {
           <h3 className="text-xl font-semibold text-primaryText">Record Chain</h3>
         </div>
 
-        <div className="space-y-4">
-          {demoRecords.map((record) => (
-            <div key={record.id} className="rounded-xl border border-slate-200 bg-offWhite p-4">
-              <div className="flex items-center justify-between gap-4">
-                <div className="font-semibold text-primaryText">{record.id}</div>
-                <IntegrityStatusBadge status={record.integrityStatus} type="integrity" />
-              </div>
-
-              <div className="mt-3 grid gap-3 md:grid-cols-2 lg:grid-cols-4 text-sm">
-                <div>
-                  <span className="text-secondaryText">Record Hash</span>
-                  <div className="mt-1 font-medium text-primaryText">UNAVAILABLE</div>
-                </div>
-                <div>
-                  <span className="text-secondaryText">Previous Record Hash</span>
-                  <div className="mt-1 font-medium text-primaryText">UNAVAILABLE</div>
-                </div>
-                <div>
-                  <span className="text-secondaryText">Digital Signature</span>
-                  <div className="mt-1 font-medium text-primaryText">UNAVAILABLE</div>
-                </div>
-                <div>
-                  <span className="text-secondaryText">Blockchain Status</span>
-                  <div className="mt-1">
-                    <IntegrityStatusBadge status={record.blockchainStatus} type="blockchain" />
-                  </div>
-                </div>
-              </div>
-            </div>
-          ))}
+        <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-sm text-secondaryText">
+          No integrity audit records are currently available. The backend audit chain has not supplied any verifiable records yet.
         </div>
       </div>
     </div>

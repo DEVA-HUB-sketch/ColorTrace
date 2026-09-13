@@ -1,8 +1,7 @@
 import IntegrityStatusBadge from '@/components/IntegrityStatusBadge';
-import { demoRecords } from '@/data/demoRecords';
 import { getResultClasses } from '@/utils/recordUtils';
 
-const orderedRecords = [...demoRecords].sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+const orderedRecords: Array<{ id: string; timestamp: string; result: string; operator: string; location: string; integrityStatus: string; blockchainStatus: string }> = [];
 
 export default function MapTimelinePage() {
   return (
@@ -29,27 +28,33 @@ export default function MapTimelinePage() {
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-soft">
           <h3 className="text-xl font-semibold text-primaryText">Timeline</h3>
           <div className="mt-5 space-y-4">
-            {orderedRecords.map((record) => (
-              <div key={record.id} className="rounded-xl border border-slate-200 bg-offWhite p-3">
-                <div className="flex items-center justify-between text-xs font-medium uppercase tracking-[0.12em] text-secondaryText">
-                  <span>{record.timestamp.slice(0, 10)}</span>
-                  <span>{record.timestamp.slice(11)}</span>
-                </div>
-                <div className="mt-2 flex items-center justify-between">
-                  <span className="font-semibold text-primaryText">{record.id}</span>
-                  <span className={`rounded-full px-2 py-1 text-xs font-medium ${getResultClasses(record.result)}`}>{record.result}</span>
-                </div>
-                <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-secondaryText">
-                  <span>Operator: {record.operator}</span>
-                  <span>•</span>
-                  <span>Location: {record.location}</span>
-                </div>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <IntegrityStatusBadge status={record.integrityStatus} type="integrity" />
-                  <IntegrityStatusBadge status={record.blockchainStatus} type="blockchain" />
-                </div>
+            {orderedRecords.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-sm text-secondaryText">
+                No timeline records are available yet because the backend has not supplied any location data.
               </div>
-            ))}
+            ) : (
+              orderedRecords.map((record) => (
+                <div key={record.id} className="rounded-xl border border-slate-200 bg-offWhite p-3">
+                  <div className="flex items-center justify-between text-xs font-medium uppercase tracking-[0.12em] text-secondaryText">
+                    <span>{record.timestamp.slice(0, 10)}</span>
+                    <span>{record.timestamp.slice(11)}</span>
+                  </div>
+                  <div className="mt-2 flex items-center justify-between">
+                    <span className="font-semibold text-primaryText">{record.id}</span>
+                    <span className={`rounded-full px-2 py-1 text-xs font-medium ${getResultClasses(record.result)}`}>{record.result}</span>
+                  </div>
+                  <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-secondaryText">
+                    <span>Operator: {record.operator}</span>
+                    <span>•</span>
+                    <span>Location: {record.location}</span>
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <IntegrityStatusBadge status={record.integrityStatus} type="integrity" />
+                    <IntegrityStatusBadge status={record.blockchainStatus} type="blockchain" />
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
       </div>

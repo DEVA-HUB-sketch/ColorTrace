@@ -12,6 +12,7 @@ export type NewTestResult = 'POSITIVE' | 'NEGATIVE' | 'INCONCLUSIVE';
 export type WorkflowResultState = NewTestResult | 'UNAVAILABLE';
 export type CaptureState = 'unavailable' | 'initializing' | 'ready' | 'capturing' | 'captured' | 'retake';
 export type ReviewState = 'not-started' | 'ready' | 'retake' | 'unavailable';
+export type LocationState = 'unavailable' | 'ready' | 'denied';
 export type AnalysisStageStatus = 'completed' | 'current' | 'pending' | 'unavailable';
 export type ProvenanceStatus = 'PENDING' | 'UNAVAILABLE' | 'CONFIRMED';
 
@@ -48,6 +49,7 @@ export type NewTestWorkflowState = {
   selectedConfigurationId: string;
   currentStep: NewTestWorkflowStep;
   captureState: CaptureState;
+  locationState: LocationState;
   capturedImage: string | null;
   reviewState: ReviewState;
   analysisState: {

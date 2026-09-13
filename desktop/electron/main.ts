@@ -6,20 +6,22 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const isDev = !app.isPackaged;
-const devServerUrl = 'http://127.0.0.1:5173';
+const devServerUrls = ['http://127.0.0.1:4173', 'http://127.0.0.1:5173'];
 const builtIndexPath = path.join(__dirname, '../dist/index.html');
 
 async function loadApp(mainWindow: BrowserWindow) {
   if (isDev) {
-    try {
-      const response = await fetch(devServerUrl);
-      if (response.ok) {
-        await mainWindow.loadURL(devServerUrl);
-        mainWindow.webContents.openDevTools({ mode: 'detach' });
-        return;
+    for (const devServerUrl of devServerUrls) {
+      try {
+        const response = await fetch(devServerUrl);
+        if (response.ok) {
+          await mainWindow.loadURL(devServerUrl);
+          mainWindow.webContents.openDevTools({ mode: 'detach' });
+          return;
+        }
+      } catch {
+        // Keep trying the next candidate.
       }
-    } catch {
-      // Fall back to built bundle when the Vite dev server is unavailable.
     }
   }
 

@@ -10,7 +10,7 @@ import {
   getResultBadge,
   workflowSteps,
 } from '@/state/newTestWorkflow';
-import type { NewTestResult, NewTestWorkflowStep, WorkflowResultState } from '@/types/newTestWorkflow';
+import type { LocationState, NewTestResult, NewTestWorkflowStep, WorkflowResultState } from '@/types/newTestWorkflow';
 
 const resultOptions: Array<{ value: NewTestResult; label: string; helper: string }> = [
   { value: 'POSITIVE', label: 'POSITIVE', helper: 'Select a presumptive field-test result state for this workflow.' },
@@ -46,11 +46,27 @@ export default function NewTestPage() {
     () => getConfigurationById(workflow.selectedConfigurationId),
     [workflow.selectedConfigurationId],
   );
+  const selectedConfigurationName = selectedConfiguration?.name ?? 'Unavailable';
+  const selectedConfigurationVersion = selectedConfiguration?.version ?? 'Unavailable';
+  const analysisStages = workflow.analysisState?.stages ?? [];
+  const analysisMessage = workflow.analysisState?.message ?? 'Analysis is unavailable in the current frontend because the CV and model pipeline is not connected yet.';
+  const provenanceStatus = workflow.provenanceState?.status ?? 'UNAVAILABLE';
+  const provenanceMessage = workflow.provenanceState?.message ?? 'Blockchain provenance is unavailable in the current frontend.';
+  const evidenceRecordState = workflow.evidenceRecordState ?? {};
+  const evidenceRecordResult = evidenceRecordState.result ?? 'UNAVAILABLE';
+  const evidenceRecordLocation = evidenceRecordState.location || 'Unavailable';
+  const evidenceRecordRecordId = evidenceRecordState.recordId || 'Unavailable';
+  const evidenceRecordConfigurationName = evidenceRecordState.configurationName || 'Unavailable';
+  const evidenceRecordVersion = evidenceRecordState.version || 'Unavailable';
+  const evidenceRecordTimestamp = evidenceRecordState.timestamp || 'Unavailable';
+  const evidenceRecordOperator = evidenceRecordState.operator || 'Unavailable';
+  const evidenceRecordDevice = evidenceRecordState.device || 'Unavailable';
+  const capturedImage = workflow.capturedImage ?? null;
 
   const canGoNext = useMemo(() => {
     switch (workflow.currentStep) {
       case 'configuration':
-        return !!selectedConfiguration;
+        return true;
       case 'instructions':
         return true;
       case 'capture':
@@ -62,7 +78,7 @@ export default function NewTestPage() {
       case 'result':
         return workflow.resultState !== 'UNAVAILABLE';
       case 'evidence':
-        return workflow.evidenceRecordState.available;
+        return Boolean(workflow.evidenceRecordState?.available);
       case 'provenance':
         return false;
       default:
@@ -72,6 +88,7 @@ export default function NewTestPage() {
 
   const updateEvidenceRecord = (nextState = workflow) => {
     const timestamp = nextState.evidenceRecordState.timestamp || new Date().toLocaleString('en-GB', { hour12: false });
+    const selectedConfig = getConfigurationById(nextState.selectedConfigurationId);
 
     return {
       ...nextState,
@@ -80,10 +97,10 @@ export default function NewTestPage() {
         available: Boolean(nextState.capturedImage),
         recordId: `CT-${Date.now().toString().slice(-6)}`,
         configurationId: nextState.selectedConfigurationId,
-        configurationName: getConfigurationById(nextState.selectedConfigurationId).name,
-        version: getConfigurationById(nextState.selectedConfigurationId).version,
+        configurationName: selectedConfig?.name ?? 'Unavailable',
+        version: selectedConfig?.version ?? 'Unavailable',
         timestamp,
-        location: 'Sector A',
+        location: 'Unavailable',
         operator: 'Officer 01',
         device: 'LT-400',
         result: nextState.resultState === 'UNAVAILABLE' ? 'UNAVAILABLE' : nextState.resultState,
@@ -94,6 +111,10 @@ export default function NewTestPage() {
 
   const handleSelectConfiguration = (configurationId: string) => {
     const config = getConfigurationById(configurationId);
+
+    if (!config) {
+      return;
+    }
 
     setWorkflow((current) => ({
       ...current,
@@ -149,6 +170,13 @@ export default function NewTestPage() {
         image: null,
         available: false,
       },
+    }));
+  };
+
+  const handleLocationStateChange = (nextState: LocationState) => {
+    setWorkflow((current) => ({
+      ...current,
+      locationState: nextState,
     }));
   };
 
@@ -234,54 +262,8 @@ export default function NewTestPage() {
               <h3 className="text-xl font-semibold text-primaryText">Configuration</h3>
             </div>
 
-            <div className="grid gap-4">
-              {configurationOptions.map((config) => {
-                const isSelected = config.id === workflow.selectedConfigurationId;
-
-                return (
-                  <button
-                    key={config.id}
-                    type="button"
-                    onClick={() => handleSelectConfiguration(config.id)}
-                    className={`w-full rounded-2xl border p-4 text-left transition ${
-                      isSelected
-                        ? 'border-primaryBlue bg-blue-50 shadow-soft'
-                        : 'border-slate-200 bg-offWhite hover:border-slate-300'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <div className="text-xs font-medium uppercase tracking-[0.16em] text-secondaryText">Configuration ID</div>
-                        <div className="mt-1 text-lg font-semibold text-primaryText">{config.id}</div>
-                      </div>
-                      {isSelected && <CheckCircle2 className="h-5 w-5 text-primaryBlue" />}
-                    </div>
-
-                    <div className="mt-4 grid gap-3 md:grid-cols-2">
-                      <div>
-                        <div className="text-xs uppercase tracking-[0.12em] text-secondaryText">Name</div>
-                        <div className="mt-1 font-medium text-primaryText">{config.name}</div>
-                      </div>
-                      <div>
-                        <div className="text-xs uppercase tracking-[0.12em] text-secondaryText">Reference configuration</div>
-                        <div className="mt-1 font-medium text-primaryText">{config.referenceConfiguration}</div>
-                      </div>
-                      <div>
-                        <div className="text-xs uppercase tracking-[0.12em] text-secondaryText">Version</div>
-                        <div className="mt-1 font-medium text-primaryText">{config.version}</div>
-                      </div>
-                      <div>
-                        <div className="text-xs uppercase tracking-[0.12em] text-secondaryText">Supported outcome classes</div>
-                        <div className="mt-1 font-medium text-primaryText">{config.supportedOutcomeClasses.join(' | ')}</div>
-                      </div>
-                    </div>
-
-                    <div className="mt-3 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-secondaryText">
-                      {config.description}
-                    </div>
-                  </button>
-                );
-              })}
+            <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-sm text-secondaryText">
+              No configuration presets are available in the current frontend build. The backend configuration service is not connected yet.
             </div>
           </div>
         );
@@ -332,7 +314,7 @@ export default function NewTestPage() {
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <div className="text-xs uppercase tracking-[0.12em] text-secondaryText">Camera state</div>
-                  <div className="mt-1 text-xl font-semibold text-primaryText">{workflow.captureState.toUpperCase()}</div>
+                  <div className="mt-1 text-xl font-semibold text-primaryText">{workflow.captureState?.toUpperCase() ?? 'UNAVAILABLE'}</div>
                 </div>
 
                 <div className="flex gap-3">
@@ -364,6 +346,41 @@ export default function NewTestPage() {
                 {workflow.captureState === 'captured' && 'Capture completed. Review the frame before continuing to analysis.'}
               </div>
             </div>
+
+            <div className="rounded-2xl border border-slate-200 bg-offWhite p-5">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <div className="text-xs uppercase tracking-[0.12em] text-secondaryText">Location state</div>
+                  <div className="mt-1 text-xl font-semibold text-primaryText">{workflow.locationState?.toUpperCase() ?? 'UNAVAILABLE'}</div>
+                </div>
+
+                <div className="flex gap-3">
+                  {workflow.locationState !== 'ready' && (
+                    <button type="button" onClick={() => handleLocationStateChange('ready')} className="rounded-xl bg-primaryBlue px-4 py-2.5 text-sm font-semibold text-white">
+                      Enable location UI
+                    </button>
+                  )}
+
+                  {workflow.locationState !== 'denied' && (
+                    <button type="button" onClick={() => handleLocationStateChange('denied')} className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-primaryText">
+                      Simulate denied
+                    </button>
+                  )}
+
+                  {workflow.locationState !== 'unavailable' && (
+                    <button type="button" onClick={() => handleLocationStateChange('unavailable')} className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-primaryText">
+                      Reset
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4 text-sm text-secondaryText">
+                {workflow.locationState === 'unavailable' && 'Location is unavailable in the current frontend. No backend location source or permission flow is connected yet.'}
+                {workflow.locationState === 'ready' && 'Location UI is enabled for frontend testing. No real coordinates or backend location data are being invented.'}
+                {workflow.locationState === 'denied' && 'Location permission is denied in the current frontend test state. The workflow remains usable without crash or fake coordinates.'}
+              </div>
+            </div>
           </div>
         );
       case 'review':
@@ -374,13 +391,13 @@ export default function NewTestPage() {
               <h3 className="text-xl font-semibold text-primaryText">Review</h3>
             </div>
 
-            {!workflow.capturedImage ? (
+            {!capturedImage ? (
               <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-10 text-center text-secondaryText">
                 No image is available yet. Complete capture before reviewing the record.
               </div>
             ) : (
               <div className="space-y-4">
-                <img src={workflow.capturedImage} alt="Captured frame preview" className="w-full rounded-2xl border border-slate-200 bg-white object-cover" />
+                <img src={capturedImage ?? undefined} alt="Captured frame preview" className="w-full rounded-2xl border border-slate-200 bg-white object-cover" />
 
                 <div className="rounded-2xl border border-slate-200 bg-offWhite p-4">
                   <div className="mb-2 text-sm font-medium uppercase tracking-[0.12em] text-secondaryText">Available checks</div>
@@ -404,11 +421,11 @@ export default function NewTestPage() {
 
             <div className="rounded-2xl border border-slate-200 bg-offWhite p-5">
               <div className="text-sm font-medium uppercase tracking-[0.12em] text-secondaryText">Pipeline status</div>
-              <div className="mt-2 text-base font-medium text-primaryText">{workflow.analysisState.message}</div>
+              <div className="mt-2 text-base font-medium text-primaryText">{analysisMessage}</div>
             </div>
 
             <div className="space-y-3">
-              {workflow.analysisState.stages.map((stage) => (
+              {analysisStages.map((stage) => (
                 <div key={stage.name} className="rounded-2xl border border-slate-200 bg-white p-4">
                   <div className="flex items-center justify-between gap-3">
                     <div>
@@ -472,12 +489,12 @@ export default function NewTestPage() {
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="rounded-2xl border border-slate-200 bg-offWhite p-4">
                     <div className="text-xs uppercase tracking-[0.12em] text-secondaryText">Record ID</div>
-                    <div className="mt-1 font-medium text-primaryText">{workflow.evidenceRecordState.recordId}</div>
+                    <div className="mt-1 font-medium text-primaryText">{evidenceRecordRecordId}</div>
                   </div>
                   <div className="rounded-2xl border border-slate-200 bg-offWhite p-4">
                     <div className="text-xs uppercase tracking-[0.12em] text-secondaryText">Result</div>
-                    <div className={`mt-1 inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${getResultBadge(workflow.evidenceRecordState.result)}`}>
-                      {workflow.evidenceRecordState.result}
+                    <div className={`mt-1 inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${getResultBadge(evidenceRecordResult)}`}>
+                      {evidenceRecordResult}
                     </div>
                   </div>
                 </div>
@@ -485,41 +502,41 @@ export default function NewTestPage() {
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="rounded-2xl border border-slate-200 bg-offWhite p-4">
                     <div className="text-xs uppercase tracking-[0.12em] text-secondaryText">Configuration</div>
-                    <div className="mt-1 font-medium text-primaryText">{workflow.evidenceRecordState.configurationName}</div>
+                    <div className="mt-1 font-medium text-primaryText">{evidenceRecordConfigurationName}</div>
                   </div>
                   <div className="rounded-2xl border border-slate-200 bg-offWhite p-4">
                     <div className="text-xs uppercase tracking-[0.12em] text-secondaryText">Configuration version</div>
-                    <div className="mt-1 font-medium text-primaryText">{workflow.evidenceRecordState.version}</div>
+                    <div className="mt-1 font-medium text-primaryText">{evidenceRecordVersion}</div>
                   </div>
                 </div>
 
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="rounded-2xl border border-slate-200 bg-offWhite p-4">
                     <div className="text-xs uppercase tracking-[0.12em] text-secondaryText">Timestamp</div>
-                    <div className="mt-1 font-medium text-primaryText">{workflow.evidenceRecordState.timestamp}</div>
+                    <div className="mt-1 font-medium text-primaryText">{evidenceRecordTimestamp}</div>
                   </div>
                   <div className="rounded-2xl border border-slate-200 bg-offWhite p-4">
                     <div className="text-xs uppercase tracking-[0.12em] text-secondaryText">Location</div>
-                    <div className="mt-1 font-medium text-primaryText">{workflow.evidenceRecordState.location}</div>
+                    <div className="mt-1 font-medium text-primaryText">{evidenceRecordLocation}</div>
                   </div>
                 </div>
 
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="rounded-2xl border border-slate-200 bg-offWhite p-4">
                     <div className="text-xs uppercase tracking-[0.12em] text-secondaryText">Operator</div>
-                    <div className="mt-1 font-medium text-primaryText">{workflow.evidenceRecordState.operator}</div>
+                    <div className="mt-1 font-medium text-primaryText">{evidenceRecordOperator}</div>
                   </div>
                   <div className="rounded-2xl border border-slate-200 bg-offWhite p-4">
                     <div className="text-xs uppercase tracking-[0.12em] text-secondaryText">Device</div>
-                    <div className="mt-1 font-medium text-primaryText">{workflow.evidenceRecordState.device}</div>
+                    <div className="mt-1 font-medium text-primaryText">{evidenceRecordDevice}</div>
                   </div>
                 </div>
               </div>
 
               <div className="rounded-2xl border border-slate-200 bg-offWhite p-4">
                 <div className="text-xs uppercase tracking-[0.12em] text-secondaryText">Captured image</div>
-                {workflow.capturedImage ? (
-                  <img src={workflow.capturedImage} alt="Evidence preview" className="mt-3 w-full rounded-xl border border-slate-200 bg-white object-cover" />
+                {capturedImage ? (
+                  <img src={capturedImage} alt="Evidence preview" className="mt-3 w-full rounded-xl border border-slate-200 bg-white object-cover" />
                 ) : (
                   <div className="mt-3 rounded-xl border border-dashed border-slate-300 bg-white p-6 text-center text-sm text-secondaryText">
                     No image captured.
@@ -559,8 +576,8 @@ export default function NewTestPage() {
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <div className="text-xs uppercase tracking-[0.12em] text-secondaryText">Status</div>
-                  <div className={`mt-1 inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${getProvenanceBadge(workflow.provenanceState.status)}`}>
-                    {workflow.provenanceState.status}
+                  <div className={`mt-1 inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${getProvenanceBadge(provenanceStatus)}`}>
+                    {provenanceStatus}
                   </div>
                 </div>
                 <div className="text-right text-sm text-secondaryText">
@@ -569,7 +586,7 @@ export default function NewTestPage() {
               </div>
 
               <div className="mt-4 rounded-xl border border-slate-200 bg-offWhite p-4 text-sm text-secondaryText">
-                {workflow.provenanceState.message}
+                {provenanceMessage}
               </div>
             </div>
           </div>
@@ -636,11 +653,15 @@ export default function NewTestPage() {
             </div>
             <div className="rounded-xl bg-offWhite px-3 py-2">
               <div className="text-xs uppercase tracking-[0.12em] text-secondaryText">Selected configuration</div>
-              <div className="mt-1 font-medium text-primaryText">{selectedConfiguration.id}</div>
+              <div className="mt-1 font-medium text-primaryText">{selectedConfiguration?.id ?? 'Unavailable'}</div>
             </div>
             <div className="rounded-xl bg-offWhite px-3 py-2">
               <div className="text-xs uppercase tracking-[0.12em] text-secondaryText">Capture state</div>
-              <div className="mt-1 font-medium text-primaryText">{workflow.captureState.toUpperCase()}</div>
+              <div className="mt-1 font-medium text-primaryText">{workflow.captureState?.toUpperCase() ?? 'UNAVAILABLE'}</div>
+            </div>
+            <div className="rounded-xl bg-offWhite px-3 py-2">
+              <div className="text-xs uppercase tracking-[0.12em] text-secondaryText">Location state</div>
+              <div className="mt-1 font-medium text-primaryText">{workflow.locationState?.toUpperCase() ?? 'UNAVAILABLE'}</div>
             </div>
             <div className="rounded-xl bg-offWhite px-3 py-2">
               <div className="text-xs uppercase tracking-[0.12em] text-secondaryText">Result state</div>
@@ -650,8 +671,8 @@ export default function NewTestPage() {
             </div>
             <div className="rounded-xl bg-offWhite px-3 py-2">
               <div className="text-xs uppercase tracking-[0.12em] text-secondaryText">Provenance</div>
-              <div className={`mt-1 inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${getProvenanceBadge(workflow.provenanceState.status)}`}>
-                {workflow.provenanceState.status}
+              <div className={`mt-1 inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${getProvenanceBadge(provenanceStatus)}`}>
+                {provenanceStatus}
               </div>
             </div>
           </div>

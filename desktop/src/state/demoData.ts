@@ -1,62 +1,48 @@
-import { demoRecords, demoSummary, getFilteredDemoRecords } from '@/data/demoRecords';
 import type { DashboardScenario, DashboardViewState, TestRecord } from '@/types/testRecord';
 
 export type DemoStateConfig = {
   scenario: DashboardScenario;
 };
 
+const emptySummary = {
+  totalTests: 0,
+  positive: 0,
+  negative: 0,
+  inconclusive: 0,
+  pendingSync: 0,
+  blockchainPending: 0,
+};
+
 export const defaultDashboardState: DashboardViewState = {
-  scenario: 'normal',
-  records: demoRecords,
-  summary: demoSummary,
+  scenario: 'empty',
+  records: [],
+  summary: emptySummary,
 };
 
 export function getDashboardViewState(config?: DemoStateConfig): DashboardViewState {
-  const scenario = config?.scenario ?? 'normal';
-
-  if (scenario === 'empty') {
-    return {
-      scenario,
-      records: [],
-      summary: {
-        totalTests: 0,
-        positive: 0,
-        negative: 0,
-        inconclusive: 0,
-        pendingSync: 0,
-        blockchainPending: 0,
-      },
-    };
-  }
+  const scenario = config?.scenario ?? 'empty';
 
   if (scenario === 'error') {
     return {
       scenario,
       records: [],
-      summary: {
-        totalTests: 0,
-        positive: 0,
-        negative: 0,
-        inconclusive: 0,
-        pendingSync: 0,
-        blockchainPending: 0,
-      },
-      errorMessage: 'Unable to load dashboard data from the current reference dataset.',
+      summary: emptySummary,
+      errorMessage: 'Unable to load dashboard data because no backend data source is connected yet.',
     };
   }
 
   return {
     scenario,
-    records: demoRecords,
-    summary: demoSummary,
+    records: [],
+    summary: emptySummary,
   };
 }
 
-export function getRecordById(recordId: string): TestRecord | undefined {
-  return demoRecords.find((record) => record.id === recordId);
+export function getRecordById(_recordId: string): TestRecord | undefined {
+  return undefined;
 }
 
-export function getDemoRecordsForTable(filters?: {
+export function getDemoRecordsForTable(_filters?: {
   search?: string;
   result?: string;
   integrity?: string;
@@ -65,5 +51,5 @@ export function getDemoRecordsForTable(filters?: {
   dateFrom?: string;
   dateTo?: string;
 }) {
-  return getFilteredDemoRecords(filters);
+  return [] as TestRecord[];
 }

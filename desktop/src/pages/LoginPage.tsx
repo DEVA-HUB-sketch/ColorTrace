@@ -1,32 +1,40 @@
 import { useState } from 'react';
-import { ArrowRight, ShieldCheck, Wifi, WifiOff } from 'lucide-react';
+import { ArrowRight, ShieldCheck } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { attemptFrontendLogin } from '@/services/auth';
 
 export default function LoginPage() {
+  const navigate = useNavigate();
   const [officerId, setOfficerId] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
 
-  const isValid = officerId.trim().length >= 3 && password.trim().length >= 6;
+  const isValid = officerId.trim().length > 0 && password.trim().length > 0;
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     if (!isValid) {
-      setErrorMessage('Enter a valid Officer ID and password to continue.');
-      setSuccessMessage('');
+      setErrorMessage(officerId.trim().length === 0 ? 'Enter your officer ID.' : 'Enter your password.');
       return;
     }
 
     setIsLoading(true);
     setErrorMessage('');
-    setSuccessMessage('');
+
+    const result = attemptFrontendLogin(officerId, password);
+
+    if (!result.success) {
+      setIsLoading(false);
+      setErrorMessage(result.error ?? 'Unable to continue.');
+      return;
+    }
 
     window.setTimeout(() => {
       setIsLoading(false);
-      setSuccessMessage('Login request accepted. Authentication endpoint is not connected in this desktop build.');
-    }, 700);
+      navigate('/dashboard', { replace: true });
+    }, 300);
   };
 
   return (
@@ -64,10 +72,10 @@ export default function LoginPage() {
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-secondaryText">
-              <span>Connection</span>
+              <span>Access</span>
               <span className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-2.5 py-1 font-medium text-emerald-700">
-                {true ? <Wifi className="h-3.5 w-3.5" /> : <WifiOff className="h-3.5 w-3.5" />}
-                ONLINE
+                <ShieldCheck className="h-3.5 w-3.5" />
+                Secure access
               </span>
             </div>
 
@@ -95,12 +103,6 @@ export default function LoginPage() {
             {errorMessage && (
               <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
                 {errorMessage}
-              </div>
-            )}
-
-            {successMessage && (
-              <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-                {successMessage}
               </div>
             )}
 

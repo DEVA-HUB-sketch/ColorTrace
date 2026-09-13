@@ -1,24 +1,13 @@
 import { useMemo, useState } from 'react';
 import IntegrityStatusBadge from '@/components/IntegrityStatusBadge';
-import { demoRecords } from '@/data/demoRecords';
 import type { SyncUiState } from '@/types/testRecord';
 
 export default function SyncStatusPage() {
   const [syncUiState, setSyncUiState] = useState<SyncUiState>('offline');
 
-  const queue = useMemo(() => {
-    if (syncUiState === 'syncing') {
-      return demoRecords.map((record) => ({ ...record, syncStatus: 'SYNCING' as const }));
-    }
+  const queue = useMemo(() => [], [syncUiState]);
 
-    if (syncUiState === 'synced') {
-      return demoRecords.map((record) => ({ ...record, syncStatus: 'SYNCED' as const }));
-    }
-
-    return demoRecords;
-  }, [syncUiState]);
-
-  const pendingRecords = queue.filter((record) => record.syncStatus === 'PENDING' || record.syncStatus === 'RETRY' || record.syncStatus === 'OFFLINE').length;
+  const pendingRecords = 0;
 
   const handleSyncNow = () => {
     if (syncUiState === 'syncing') {
@@ -63,7 +52,7 @@ export default function SyncStatusPage() {
             </div>
             <div className="flex items-center justify-between rounded-xl bg-offWhite px-3 py-2">
               <span className="text-secondaryText">Last Successful Sync</span>
-              <span className="font-semibold text-primaryText">2026-09-12 09:50</span>
+              <span className="font-semibold text-primaryText">Not available</span>
             </div>
           </div>
 
@@ -80,12 +69,18 @@ export default function SyncStatusPage() {
           <h3 className="text-xl font-semibold text-primaryText">Queue</h3>
 
           <div className="mt-5 space-y-3">
-            {queue.map((record) => (
-              <div key={record.id} className="flex items-center justify-between rounded-xl bg-offWhite px-3 py-2 text-sm">
-                <span className="font-medium text-primaryText">{record.id}</span>
-                <IntegrityStatusBadge status={record.syncStatus} type="sync" />
+            {queue.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 text-center text-sm text-secondaryText">
+                No synchronization data is available yet.
               </div>
-            ))}
+            ) : (
+              queue.map((record) => (
+                <div key={record.id} className="flex items-center justify-between rounded-xl bg-offWhite px-3 py-2 text-sm">
+                  <span className="font-medium text-primaryText">{record.id}</span>
+                  <IntegrityStatusBadge status={record.syncStatus} type="sync" />
+                </div>
+              ))
+            )}
           </div>
         </div>
       </div>

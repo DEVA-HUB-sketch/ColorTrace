@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import IntegrityStatusBadge from '@/components/IntegrityStatusBadge';
-import { demoRecords } from '@/data/demoRecords';
 import type { TestRecord, VerificationState } from '@/types/testRecord';
 
 export default function BlockchainVerificationPage() {
@@ -25,37 +24,9 @@ export default function BlockchainVerificationPage() {
     setMessage('Checking the current local dataset...');
 
     window.setTimeout(() => {
-      const foundRecord = demoRecords.find((record) => record.id === trimmedId);
-
-      if (!foundRecord) {
-        setVerificationState('unavailable');
-        setSelectedRecord(null);
-        setMessage('No matching record was found in the current local dataset.');
-        return;
-      }
-
-      setSelectedRecord(foundRecord);
-
-      if (foundRecord.blockchainStatus === 'VERIFIED') {
-        setVerificationState('verified');
-        setMessage('Matching record found. The current local dataset marks this record as verified.');
-        return;
-      }
-
-      if (foundRecord.blockchainStatus === 'PENDING') {
-        setVerificationState('pending');
-        setMessage('Matching record found. The current blockchain status is pending.');
-        return;
-      }
-
-      if (foundRecord.blockchainStatus === 'FAILED') {
-        setVerificationState('failed');
-        setMessage('Matching record found. The current blockchain status is failed.');
-        return;
-      }
-
       setVerificationState('unavailable');
-      setMessage('Matching record found. The current blockchain status is unavailable.');
+      setSelectedRecord(null);
+      setMessage('No matching record is available in the current frontend dataset. Blockchain provenance is not connected to a real backend API yet.');
     }, 500);
   };
 
